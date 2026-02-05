@@ -39,6 +39,8 @@ class FingertipPosition:
     y: int
     finger_name: str
     hand_label: str
+    visibility: float = 1.0  # Per-landmark visibility score from MediaPipe
+    presence: float = 1.0  # Per-landmark presence score from MediaPipe
 
 
 @dataclass
@@ -48,6 +50,7 @@ class HandData:
     fingertips: list[FingertipPosition]
     handedness: str
     all_landmarks: list[tuple[int, int]]
+    hand_confidence: float = 1.0  # Overall hand detection confidence
 
 
 class HandTracker:
@@ -58,34 +61,53 @@ class HandTracker:
         max_num_hands: int = config.MAX_NUM_HANDS,
         detection_confidence: float = config.DETECTION_CONFIDENCE,
         tracking_confidence: float = config.TRACKING_CONFIDENCE,
+        presence_confidence: float = config.HAND_PRESENCE_CONFIDENCE,
     ):
         _ensure_model_exists()
 
         base_options = python.BaseOptions(model_asset_path=str(MODEL_PATH))
         options = vision.HandLandmarkerOptions(
             base_options=base_options,
-            running_mode=vision.RunningMode.IMAGE,
+            running_mode=vision.RunningMode.VIDEO,  # VIDEO mode for temporal consistency
             num_hands=max_num_hands,
             min_hand_detection_confidence=detection_confidence,
             min_tracking_confidence=tracking_confidence,
+            min_hand_presence_confidence=presence_confidence,
         )
         self.landmarker = vision.HandLandmarker.create_from_options(options)
 
-    def process_frame(self, frame: np.ndarray) -> list[HandData]:
+    def _preprocess_frame(self, frame: np.ndarray) -> np.ndarray:
+        """Apply CLAHE to enhance hand visibility at distance."""
+        if not config.PREPROCESSING_ENABLED:
+            return frame
+        lab = cv2.cvtColor(frame, cv2.COLOR_BGR2LAB)
+        clahe = cv2.createCLAHE(
+            clipLimit=config.CLAHE_CLIP_LIMIT,
+            tileGridSize=(config.CLAHE_TILE_SIZE, config.CLAHE_TILE_SIZE),
+        )
+        lab[:, :, 0] = clahe.apply(lab[:, :, 0])
+        return cv2.cvtColor(lab, cv2.COLOR_LAB2BGR)
+
+    def process_frame(self, frame: np.ndarray, timestamp_ms: int) -> list[HandData]:
         """
         Process a frame and return detected hand data.
 
         Args:
             frame: BGR image from OpenCV
+            timestamp_ms: Frame timestamp in milliseconds (must be monotonically increasing)
 
         Returns:
             List of HandData objects for each detected hand
         """
+        # Apply preprocessing to enhance hand visibility at distance
+        processed_frame = self._preprocess_frame(frame)
+
         # Convert BGR to RGB for MediaPipe
-        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        rgb_frame = cv2.cvtColor(processed_frame, cv2.COLOR_BGR2RGB)
         mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb_frame)
 
-        result = self.landmarker.detect(mp_image)
+        # Use detect_for_video with timestamp for VIDEO mode
+        result = self.landmarker.detect_for_video(mp_image, timestamp_ms)
 
         hands_data = []
         frame_height, frame_width = frame.shape[:2]
@@ -95,8 +117,9 @@ class HandTracker:
                 result.hand_landmarks, result.handedness
             ):
                 hand_label = handedness_info[0].category_name
+                hand_confidence = handedness_info[0].score
                 hand_data = self._extract_hand_data(
-                    hand_landmarks, hand_label, frame_width, frame_height
+                    hand_landmarks, hand_label, frame_width, frame_height, hand_confidence
                 )
                 hands_data.append(hand_data)
 
@@ -108,6 +131,7 @@ class HandTracker:
         hand_label: str,
         frame_width: int,
         frame_height: int,
+        hand_confidence: float = 1.0,
     ) -> HandData:
         """Extract fingertip positions and all landmarks from a hand."""
         fingertips = []
@@ -119,6 +143,10 @@ class HandTracker:
             y = int(landmark.y * frame_height)
             all_landmarks.append((x, y))
 
+            # Extract per-landmark visibility and presence if available
+            visibility = getattr(landmark, 'visibility', 1.0) or 1.0
+            presence = getattr(landmark, 'presence', 1.0) or 1.0
+
             # Check if this is a fingertip
             if idx in config.FINGERTIP_INDICES:
                 fingertips.append(
@@ -127,6 +155,8 @@ class HandTracker:
                         y=y,
                         finger_name=config.FINGERTIP_INDICES[idx],
                         hand_label=hand_label,
+                        visibility=visibility,
+                        presence=presence,
                     )
                 )
 
@@ -134,6 +164,7 @@ class HandTracker:
             fingertips=fingertips,
             handedness=hand_label,
             all_landmarks=all_landmarks,
+            hand_confidence=hand_confidence,
         )
 
     def close(self):

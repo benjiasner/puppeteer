@@ -6,6 +6,7 @@ import cv2
 
 from . import config
 from .hand_tracker import HandTracker
+from .smoother import TemporalSmoother
 from .visualizer import draw_all_fingertips, draw_debug_info
 
 
@@ -13,6 +14,7 @@ def main():
     """Run the hand tracking application."""
     # Initialize components
     tracker = HandTracker()
+    smoother = TemporalSmoother()
 
     # Open webcam
     cap = cv2.VideoCapture(config.CAMERA_INDEX)
@@ -25,11 +27,15 @@ def main():
 
     # State variables
     show_debug = False
+    use_smoothing = True
     prev_time = time.time()
     fps = 0.0
 
+    # Timestamp tracking for VIDEO mode (must be monotonically increasing)
+    start_time = time.perf_counter()
+
     print("Hand Tracking Started")
-    print("Press 'q' to quit, 'd' to toggle debug info")
+    print("Press 'q' to quit, 'd' to toggle debug info, 's' to toggle smoothing, 'p' to toggle preprocessing")
 
     try:
         while True:
@@ -41,14 +47,22 @@ def main():
             # Mirror the frame horizontally for natural interaction
             frame = cv2.flip(frame, 1)
 
-            # Process frame for hand detection
-            hands_data = tracker.process_frame(frame)
+            # Calculate timestamp in milliseconds for MediaPipe VIDEO mode
+            current_time = time.perf_counter()
+            timestamp_ms = int((current_time - start_time) * 1000)
+            timestamp_sec = current_time - start_time
+
+            # Process frame for hand detection (VIDEO mode requires timestamp)
+            hands_data = tracker.process_frame(frame, timestamp_ms)
+
+            # Apply temporal smoothing if enabled
+            if use_smoothing:
+                hands_data = smoother.process(hands_data, timestamp_sec)
 
             # Draw fingertip boxes
             draw_all_fingertips(frame, hands_data)
 
             # Calculate FPS
-            current_time = time.time()
             fps = 1.0 / (current_time - prev_time) if (current_time - prev_time) > 0 else 0
             prev_time = current_time
 
@@ -65,6 +79,13 @@ def main():
                 break
             elif key == ord("d"):
                 show_debug = not show_debug
+            elif key == ord("s"):
+                use_smoothing = not use_smoothing
+                smoother.reset()
+                print(f"Smoothing: {'ON' if use_smoothing else 'OFF'}")
+            elif key == ord("p"):
+                config.PREPROCESSING_ENABLED = not config.PREPROCESSING_ENABLED
+                print(f"Preprocessing: {'ON' if config.PREPROCESSING_ENABLED else 'OFF'}")
 
     finally:
         # Cleanup
