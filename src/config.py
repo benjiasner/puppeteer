@@ -61,3 +61,17 @@ PERSISTENCE_FRAMES = 3  # Frames to predict during occlusion (reduced due to Kal
 # Base threshold scales with estimated hand size
 BASE_OUTLIER_THRESHOLD = 100  # Base pixels for outlier detection
 OUTLIER_VELOCITY_FACTOR = 0.1  # Factor to add based on velocity
+
+# Hand command settings (spread gesture)
+SPREAD_PINCH_THRESHOLD = 50  # Max avg distance from center to count as "pinched"
+SPREAD_DISTANCE_THRESHOLD = 120  # Min avg distance from center to count as "spread"
+SPREAD_MIN_TIME = 0.1  # Minimum seconds between pinch and spread
+SPREAD_MAX_TIME = 0.4  # Maximum seconds between pinch and spread
+SPREAD_REQUIRED_FINGERS = 4  # Minimum fingertips needed for gesture
+
+# Command log settings
+MAX_LOG_ENTRIES = 50  # Maximum entries to keep in command log
+LOG_PANEL_WIDTH = 200  # Width of log panel in pixels
+LOG_PANEL_BG_COLOR = (30, 30, 30)  # Dark gray background
+LOG_PANEL_TEXT_COLOR = (200, 200, 200)  # Light gray text
+LOG_PANEL_HIGHLIGHT_COLOR = (100, 200, 100)  # Green for recent entries

@@ -5,9 +5,15 @@ import time
 import cv2
 
 from . import config
+from .hand_commands import HandCommandDetector
 from .hand_tracker import HandTracker
 from .smoother import TemporalSmoother
-from .visualizer import draw_all_fingertips, draw_debug_info
+from .visualizer import (
+    draw_all_fingertips,
+    draw_command_log,
+    draw_debug_info,
+    draw_gesture_feedback,
+)
 
 
 def main():
@@ -15,6 +21,7 @@ def main():
     # Initialize components
     tracker = HandTracker()
     smoother = TemporalSmoother()
+    command_detector = HandCommandDetector()
 
     # Open webcam
     cap = cv2.VideoCapture(config.CAMERA_INDEX)
@@ -28,6 +35,7 @@ def main():
     # State variables
     show_debug = False
     use_smoothing = True
+    show_log = False
     prev_time = time.time()
     fps = 0.0
 
@@ -35,7 +43,9 @@ def main():
     start_time = time.perf_counter()
 
     print("Hand Tracking Started")
-    print("Press 'q' to quit, 'd' to toggle debug info, 's' to toggle smoothing, 'p' to toggle preprocessing")
+    print("Press 'q' to quit, 'd' to toggle debug info, 's' to toggle smoothing")
+    print("Press 'p' to toggle preprocessing, 'l' to toggle command log")
+    print("Gesture: Pinch fingers together then spread quickly to trigger Mission Control")
 
     try:
         while True:
@@ -59,8 +69,18 @@ def main():
             if use_smoothing:
                 hands_data = smoother.process(hands_data, timestamp_sec)
 
+            # Process hand commands (spread gesture detection)
+            detected_command = command_detector.process(hands_data, timestamp_sec)
+            if detected_command:
+                print(f"Command detected: {detected_command}")
+
             # Draw fingertip boxes
             draw_all_fingertips(frame, hands_data)
+
+            # Draw gesture feedback (shows when pinch is detected)
+            if show_debug:
+                gesture_state = command_detector.get_state_info()
+                draw_gesture_feedback(frame, gesture_state)
 
             # Calculate FPS
             fps = 1.0 / (current_time - prev_time) if (current_time - prev_time) > 0 else 0
@@ -70,8 +90,14 @@ def main():
             if show_debug:
                 draw_debug_info(frame, fps, len(hands_data))
 
+            # Add command log panel if enabled
+            display_frame = frame
+            if show_log:
+                log_entries = command_detector.get_log_entries(count=20)
+                display_frame = draw_command_log(frame, log_entries)
+
             # Display the frame
-            cv2.imshow("Hand Tracking", frame)
+            cv2.imshow("Hand Tracking", display_frame)
 
             # Handle key presses
             key = cv2.waitKey(1) & 0xFF
@@ -86,6 +112,9 @@ def main():
             elif key == ord("p"):
                 config.PREPROCESSING_ENABLED = not config.PREPROCESSING_ENABLED
                 print(f"Preprocessing: {'ON' if config.PREPROCESSING_ENABLED else 'OFF'}")
+            elif key == ord("l"):
+                show_log = not show_log
+                print(f"Command Log: {'ON' if show_log else 'OFF'}")
 
     finally:
         # Cleanup
