@@ -77,3 +77,14 @@ LOG_PANEL_WIDTH = 200  # Width of log panel in pixels
 LOG_PANEL_BG_COLOR = (30, 30, 30)  # Dark gray background
 LOG_PANEL_TEXT_COLOR = (200, 200, 200)  # Light gray text
 LOG_PANEL_HIGHLIGHT_COLOR = (100, 200, 100)  # Green for recent entries
+
+# Weather Widget settings
+WEATHER_WIDGET_MARGIN = 20  # Margin from screen edge
+WEATHER_WIDGET_COMPACT_SIZE = (160, 80)  # (width, height) for compact view
+WEATHER_WIDGET_EXPANDED_SIZE = (350, 280)  # (width, height) for expanded view
+WEATHER_CACHE_DURATION = 600  # 10 minutes cache for weather data
+
+# Snap gesture settings (thumb-index pinch + quick release)
+SNAP_PINCH_THRESHOLD = 30.0  # Distance in pixels for pinch detection
+SNAP_RELEASE_THRESHOLD = 60.0  # Distance in pixels for release detection
+SNAP_RELEASE_SPEED = 300.0  # Speed in pixels/second for valid snap

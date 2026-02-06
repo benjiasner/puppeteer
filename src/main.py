@@ -5,9 +5,11 @@ import time
 import cv2
 
 from . import config
+from .audio_feedback import play_snap_sound
 from .hand_commands import HandCommandDetector
 from .hand_tracker import HandTracker
 from .smoother import TemporalSmoother
+from .snap_gesture import SnapGestureDetector
 from .visualizer import (
     draw_all_fingertips,
     draw_command_log,
@@ -15,6 +17,7 @@ from .visualizer import (
     draw_gesture_feedback,
     draw_spread_debug,
 )
+from .widgets import WeatherWidget
 
 
 def main():
@@ -23,6 +26,8 @@ def main():
     tracker = HandTracker()
     smoother = TemporalSmoother()
     command_detector = HandCommandDetector()
+    snap_detector = SnapGestureDetector()
+    weather_widget = WeatherWidget()
 
     # Open webcam
     cap = cv2.VideoCapture(config.CAMERA_INDEX)
@@ -38,6 +43,7 @@ def main():
     use_smoothing = True
     show_log = False
     prev_time = time.time()
+    prev_frame_time = time.perf_counter()
     fps = 0.0
 
     # Timestamp tracking for VIDEO mode (must be monotonically increasing)
@@ -63,6 +69,10 @@ def main():
             timestamp_ms = int((current_time - start_time) * 1000)
             timestamp_sec = current_time - start_time
 
+            # Calculate delta time for animations
+            delta_time = current_time - prev_frame_time
+            prev_frame_time = current_time
+
             # Process frame for hand detection (VIDEO mode requires timestamp)
             hands_data = tracker.process_frame(frame, timestamp_ms)
 
@@ -74,6 +84,19 @@ def main():
             detected_command = command_detector.process(hands_data, timestamp_sec)
             if detected_command:
                 print(f"Command detected: {detected_command}")
+
+            # Update weather widget
+            weather_widget.update(hands_data, delta_time)
+
+            # Check for snap gesture while hovering over widget
+            snap_detected = snap_detector.process(hands_data, timestamp_sec)
+            if snap_detected and weather_widget.is_hovering:
+                weather_widget.on_snap_gesture()
+                play_snap_sound()
+                print("Widget toggled via snap gesture")
+
+            # Draw weather widget (behind fingertips for visual layering)
+            weather_widget.draw(frame)
 
             # Draw fingertip boxes
             draw_all_fingertips(frame, hands_data)
@@ -123,6 +146,7 @@ def main():
     finally:
         # Cleanup
         tracker.close()
+        weather_widget.stop()
         cap.release()
         cv2.destroyAllWindows()
         print("Hand Tracking Stopped")
