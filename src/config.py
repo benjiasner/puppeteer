@@ -63,11 +63,13 @@ BASE_OUTLIER_THRESHOLD = 100  # Base pixels for outlier detection
 OUTLIER_VELOCITY_FACTOR = 0.1  # Factor to add based on velocity
 
 # Hand command settings (spread gesture)
-SPREAD_PINCH_THRESHOLD = 50  # Max avg distance from center to count as "pinched"
-SPREAD_DISTANCE_THRESHOLD = 120  # Min avg distance from center to count as "spread"
+# Adaptive thresholds - ratios relative to hand size for distance-independent detection
+SPREAD_PINCH_RATIO = 0.12  # avg_spread < 25% of hand_size = pinched
+SPREAD_DISTANCE_RATIO = 0.35  # avg_spread > 55% of hand_size = spread
 SPREAD_MIN_TIME = 0.1  # Minimum seconds between pinch and spread
-SPREAD_MAX_TIME = 0.4  # Maximum seconds between pinch and spread
+SPREAD_MAX_TIME = 0.7  # Maximum seconds between pinch and spread (more time for deliberate gestures)
 SPREAD_REQUIRED_FINGERS = 4  # Minimum fingertips needed for gesture
+SPREAD_DEFAULT_HAND_SIZE = 200  # Fallback hand size in pixels if no landmarks
 
 # Command log settings
 MAX_LOG_ENTRIES = 50  # Maximum entries to keep in command log

@@ -35,6 +35,25 @@ def draw_fingertip_box(
     bottom_right = (x + half_size, y + half_size)
     cv2.rectangle(frame, top_left, bottom_right, color, thickness)
 
+def draw_fingertip_dot(
+    frame: np.ndarray,
+    x: int,
+    y: int,
+    color: tuple[int, int, int] = config.BOX_COLOR,
+    radius: int = 5,  # Adjust this value to make dots bigger/smaller
+) -> None:
+    """
+    Draw a solid dot (filled circle) at the given coordinates.
+
+    Args:
+        frame: Image to draw on (modified in place)
+        x: Center x coordinate
+        y: Center y coordinate
+        color: BGR color tuple
+        radius: Radius of the dot in pixels
+    """
+    # Thickness -1 fills the circle to make it a solid dot
+    cv2.circle(frame, (x, y), radius, color, thickness=-1)
 
 def draw_all_fingertips(
     frame: np.ndarray,
@@ -55,7 +74,8 @@ def draw_all_fingertips(
     """
     for hand in hands_data:
         for fingertip in hand.fingertips:
-            draw_fingertip_box(frame, fingertip.x, fingertip.y, color, half_size, thickness)
+            #draw_fingertip_box(frame, fingertip.x, fingertip.y, color, half_size, thickness)
+            draw_fingertip_dot(frame, fingertip.x, fingertip.y, color, 3*thickness)
 
 
 def draw_debug_info(
@@ -215,3 +235,159 @@ def draw_gesture_feedback(
             color,
             2,
         )
+
+
+def draw_spread_debug(
+    frame: np.ndarray,
+    spread_info: dict,
+    x_offset: int = 10,
+    y_offset: int = 100,
+) -> None:
+    """
+    Draw spread gesture debug overlay showing adaptive threshold info.
+
+    Args:
+        frame: Image to draw on (modified in place)
+        spread_info: Dictionary from HandCommandDetector.get_spread_debug_info()
+        x_offset: X position for debug text
+        y_offset: Starting Y position for debug text
+    """
+    if not spread_info:
+        return
+
+    # Colors based on status
+    status = spread_info.get("status", "NO HAND")
+    if status == "PINCHING":
+        status_color = (0, 165, 255)  # Orange
+    elif status == "SPREAD!":
+        status_color = (0, 255, 0)  # Green
+    elif status == "READY":
+        status_color = (255, 255, 255)  # White
+    else:
+        status_color = (128, 128, 128)  # Gray
+
+    line_height = 25
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    font_scale = 0.5
+    thickness = 1
+
+    y = y_offset
+
+    # Status line (larger)
+    cv2.putText(
+        frame,
+        f"Spread: {status}",
+        (x_offset, y),
+        font,
+        0.7,
+        status_color,
+        2,
+    )
+    y += line_height + 5
+
+    # Hand size
+    hand_size = spread_info.get("hand_size", 0)
+    cv2.putText(
+        frame,
+        f"Hand size: {hand_size:.0f}px",
+        (x_offset, y),
+        font,
+        font_scale,
+        (200, 200, 200),
+        thickness,
+    )
+    y += line_height
+
+    # Current spread with percentage
+    avg_spread = spread_info.get("avg_spread", 0)
+    spread_pct = spread_info.get("spread_pct", 0)
+    cv2.putText(
+        frame,
+        f"Spread: {avg_spread:.0f}px ({spread_pct:.0f}%)",
+        (x_offset, y),
+        font,
+        font_scale,
+        (200, 200, 200),
+        thickness,
+    )
+    y += line_height
+
+    # Thresholds
+    pinch_thresh = spread_info.get("pinch_threshold", 0)
+    spread_thresh = spread_info.get("spread_threshold", 0)
+    pinch_ratio = spread_info.get("pinch_ratio", 0)
+    spread_ratio = spread_info.get("spread_ratio", 0)
+    cv2.putText(
+        frame,
+        f"Pinch < {pinch_thresh:.0f}px ({pinch_ratio:.0f}%)",
+        (x_offset, y),
+        font,
+        font_scale,
+        (0, 165, 255),  # Orange
+        thickness,
+    )
+    y += line_height
+
+    cv2.putText(
+        frame,
+        f"Spread > {spread_thresh:.0f}px ({spread_ratio:.0f}%)",
+        (x_offset, y),
+        font,
+        font_scale,
+        (0, 255, 0),  # Green
+        thickness,
+    )
+    y += line_height + 5
+
+    # Progress bar
+    bar_width = 150
+    bar_height = 15
+    bar_x = x_offset
+    bar_y = y
+
+    # Background
+    cv2.rectangle(
+        frame,
+        (bar_x, bar_y),
+        (bar_x + bar_width, bar_y + bar_height),
+        (50, 50, 50),
+        -1,
+    )
+
+    # Calculate fill based on spread percentage relative to thresholds
+    if hand_size > 0:
+        # Map spread from 0 to spread_threshold onto 0-100%
+        fill_pct = min(1.0, avg_spread / spread_thresh) if spread_thresh > 0 else 0
+        fill_width = int(bar_width * fill_pct)
+
+        # Color based on state
+        if avg_spread < pinch_thresh:
+            bar_color = (0, 165, 255)  # Orange - pinched
+        elif avg_spread > spread_thresh:
+            bar_color = (0, 255, 0)  # Green - spread
+        else:
+            bar_color = (255, 255, 255)  # White - in between
+
+        cv2.rectangle(
+            frame,
+            (bar_x, bar_y),
+            (bar_x + fill_width, bar_y + bar_height),
+            bar_color,
+            -1,
+        )
+
+        # Threshold markers
+        pinch_x = int(bar_x + bar_width * (pinch_thresh / spread_thresh)) if spread_thresh > 0 else bar_x
+        cv2.line(frame, (pinch_x, bar_y - 2), (pinch_x, bar_y + bar_height + 2), (0, 165, 255), 2)
+
+        spread_x = bar_x + bar_width
+        cv2.line(frame, (spread_x, bar_y - 2), (spread_x, bar_y + bar_height + 2), (0, 255, 0), 2)
+
+    # Border
+    cv2.rectangle(
+        frame,
+        (bar_x, bar_y),
+        (bar_x + bar_width, bar_y + bar_height),
+        (100, 100, 100),
+        1,
+    )

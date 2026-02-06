@@ -13,6 +13,7 @@ from .visualizer import (
     draw_command_log,
     draw_debug_info,
     draw_gesture_feedback,
+    draw_spread_debug,
 )
 
 
@@ -81,6 +82,9 @@ def main():
             if show_debug:
                 gesture_state = command_detector.get_state_info()
                 draw_gesture_feedback(frame, gesture_state)
+                # Draw spread debug overlay
+                spread_info = command_detector.get_spread_debug_info()
+                draw_spread_debug(frame, spread_info)
 
             # Calculate FPS
             fps = 1.0 / (current_time - prev_time) if (current_time - prev_time) > 0 else 0
