@@ -46,13 +46,13 @@ def draw_glass_panel(
     width: int,
     height: int,
     radius: int = 15,
-    blur_kernel: int = 25,
+    blur_kernel: int = 35,
     tint_color: tuple = (255, 255, 255),
     tint_opacity: float = 0.2,
     border_opacity: float = 0.4
 ) -> np.ndarray:
     """
-    Draw a frosted glass panel on the frame.
+    Draw a photorealistic frosted glass panel on the frame.
 
     Args:
         frame: Input BGR frame
@@ -85,15 +85,23 @@ def draw_glass_panel(
     # Extract ROI
     roi = frame[y1:y2, x1:x2].copy()
 
-    # Apply Gaussian blur for frosted effect
+    # Apply multiple blur layers for depth (larger kernel for more frosted look)
     blur_kernel = blur_kernel if blur_kernel % 2 == 1 else blur_kernel + 1
     blurred = cv2.GaussianBlur(roi, (blur_kernel, blur_kernel), 0)
+    # Second pass with smaller kernel for smoother blend
+    blurred = cv2.GaussianBlur(blurred, (15, 15), 0)
 
-    # Create tint overlay
-    tint = np.full_like(roi, tint_color, dtype=np.uint8)
+    # Add subtle noise texture for realism
+    noise = np.random.normal(0, 3, roi.shape).astype(np.float32)
+    blurred = np.clip(blurred.astype(np.float32) + noise, 0, 255).astype(np.uint8)
 
-    # Blend blurred ROI with tint
-    glass = cv2.addWeighted(blurred, 1.0 - tint_opacity, tint, tint_opacity, 0)
+    # Create gradient tint (lighter at top, darker at bottom)
+    gradient = np.linspace(1.0, 0.85, actual_height).reshape(-1, 1, 1)
+    gradient = np.broadcast_to(gradient, (actual_height, actual_width, 3))
+    tint_layer = (np.full_like(roi, tint_color, dtype=np.float32) * gradient).astype(np.uint8)
+
+    # Blend blurred ROI with gradient tint (higher opacity for more frosted look)
+    glass = cv2.addWeighted(blurred, 0.7, tint_layer, 0.3, 0)
 
     # Create rounded rectangle mask
     mask = create_rounded_rect_mask(actual_width, actual_height, radius)
@@ -109,24 +117,46 @@ def draw_glass_panel(
 
     frame[y1:y2, x1:x2] = composited.astype(np.uint8)
 
-    # Draw highlight borders (top and left edges for depth)
-    # Top highlight
+    # Draw inner shadow (bottom and right edges for depth)
+    overlay = frame.copy()
+    shadow_color = (80, 80, 80)
+
+    # Bottom shadow
+    pts_bottom = np.array([
+        [x1 + radius, y2 - 2],
+        [x2 - radius, y2 - 2]
+    ], np.int32)
+    cv2.line(overlay, tuple(pts_bottom[0]), tuple(pts_bottom[1]), shadow_color, 2, cv2.LINE_AA)
+
+    # Right shadow
+    pts_right = np.array([
+        [x2 - 2, y1 + radius],
+        [x2 - 2, y2 - radius]
+    ], np.int32)
+    cv2.line(overlay, tuple(pts_right[0]), tuple(pts_right[1]), shadow_color, 2, cv2.LINE_AA)
+
+    # Blend shadow with low opacity
+    cv2.addWeighted(overlay, 0.15, frame, 0.85, 0, frame)
+
+    # Draw specular highlight (top edge, brighter line simulating light reflection)
+    overlay = frame.copy()
     highlight_color = (255, 255, 255)
+
+    # Top specular highlight (brighter, thicker)
     pts_top = np.array([
         [x1 + radius, y1 + 1],
         [x2 - radius, y1 + 1]
     ], np.int32)
-    overlay = frame.copy()
-    cv2.line(overlay, tuple(pts_top[0]), tuple(pts_top[1]), highlight_color, 1, cv2.LINE_AA)
+    cv2.line(overlay, tuple(pts_top[0]), tuple(pts_top[1]), highlight_color, 2, cv2.LINE_AA)
 
-    # Left highlight
+    # Left highlight (subtle)
     pts_left = np.array([
         [x1 + 1, y1 + radius],
         [x1 + 1, y2 - radius]
     ], np.int32)
     cv2.line(overlay, tuple(pts_left[0]), tuple(pts_left[1]), highlight_color, 1, cv2.LINE_AA)
 
-    # Blend highlight
+    # Blend highlights
     cv2.addWeighted(overlay, border_opacity, frame, 1 - border_opacity, 0, frame)
 
     return frame

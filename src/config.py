@@ -64,7 +64,7 @@ OUTLIER_VELOCITY_FACTOR = 0.1  # Factor to add based on velocity
 
 # Hand command settings (spread gesture)
 # Adaptive thresholds - ratios relative to hand size for distance-independent detection
-SPREAD_PINCH_RATIO = 0.12  # avg_spread < 25% of hand_size = pinched
+SPREAD_PINCH_RATIO = 0.16  # avg_spread < 25% of hand_size = pinched
 SPREAD_DISTANCE_RATIO = 0.35  # avg_spread > 55% of hand_size = spread
 SPREAD_MIN_TIME = 0.1  # Minimum seconds between pinch and spread
 SPREAD_MAX_TIME = 0.7  # Maximum seconds between pinch and spread (more time for deliberate gestures)

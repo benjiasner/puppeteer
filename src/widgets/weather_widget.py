@@ -75,7 +75,8 @@ class WeatherWidget(BaseWidget):
         bounds = self.bounds.expanded(10)  # Slightly larger hit area
 
         for hand in hands_data:
-            if hand.handedness == "Right":
+            # Mirrored frame - user's right hand is labeled "Left" by MediaPipe
+            if hand.handedness == "Left":
                 for ft in hand.fingertips:
                     if ft.finger_name == "Index":
                         if bounds.contains(ft.x, ft.y):
@@ -198,7 +199,7 @@ class WeatherWidget(BaseWidget):
             cv2.putText(
                 frame, "Loading...",
                 (x + 15, y + height // 2 + 5),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.5, self._secondary_color, 1, cv2.LINE_AA
+                cv2.FONT_HERSHEY_DUPLEX, 0.5, self._secondary_color, 2, cv2.LINE_AA
             )
             return
 
@@ -207,16 +208,16 @@ class WeatherWidget(BaseWidget):
         cv2.putText(
             frame, temp_text,
             (x + 15, y + 45),
-            cv2.FONT_HERSHEY_SIMPLEX, 1.5, self._text_color, 2, cv2.LINE_AA
+            cv2.FONT_HERSHEY_DUPLEX, 1.5, self._text_color, 3, cv2.LINE_AA
         )
 
         # Degree symbol
         # Get text size to position degree symbol
-        (text_w, _), _ = cv2.getTextSize(temp_text, cv2.FONT_HERSHEY_SIMPLEX, 1.5, 2)
+        (text_w, _), _ = cv2.getTextSize(temp_text, cv2.FONT_HERSHEY_DUPLEX, 1.5, 3)
         cv2.putText(
             frame, "F",
             (x + 20 + text_w, y + 25),
-            cv2.FONT_HERSHEY_SIMPLEX, 0.5, self._secondary_color, 1, cv2.LINE_AA
+            cv2.FONT_HERSHEY_DUPLEX, 0.5, self._secondary_color, 2, cv2.LINE_AA
         )
 
         # Weather icon
@@ -228,7 +229,7 @@ class WeatherWidget(BaseWidget):
         cv2.putText(
             frame, weather.location,
             (x + 15, y + height - 12),
-            cv2.FONT_HERSHEY_SIMPLEX, 0.4, self._secondary_color, 1, cv2.LINE_AA
+            cv2.FONT_HERSHEY_DUPLEX, 0.4, self._secondary_color, 2, cv2.LINE_AA
         )
 
     def _draw_expanded(self, frame: np.ndarray, weather: Optional[WeatherData]):
@@ -259,7 +260,7 @@ class WeatherWidget(BaseWidget):
             cv2.putText(
                 frame, "Loading weather...",
                 (x + 20, y + height // 2),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.6, self._secondary_color, 1, cv2.LINE_AA
+                cv2.FONT_HERSHEY_DUPLEX, 0.6, self._secondary_color, 2, cv2.LINE_AA
             )
             return
 
@@ -269,21 +270,21 @@ class WeatherWidget(BaseWidget):
         cv2.putText(
             frame, temp_text,
             (x + 20, y + 50),
-            cv2.FONT_HERSHEY_SIMPLEX, 1.8, self._text_color, 2, cv2.LINE_AA
+            cv2.FONT_HERSHEY_DUPLEX, 1.8, self._text_color, 3, cv2.LINE_AA
         )
 
-        (text_w, _), _ = cv2.getTextSize(temp_text, cv2.FONT_HERSHEY_SIMPLEX, 1.8, 2)
+        (text_w, _), _ = cv2.getTextSize(temp_text, cv2.FONT_HERSHEY_DUPLEX, 1.8, 3)
         cv2.putText(
             frame, "F",
             (x + 25 + text_w, y + 25),
-            cv2.FONT_HERSHEY_SIMPLEX, 0.6, self._secondary_color, 1, cv2.LINE_AA
+            cv2.FONT_HERSHEY_DUPLEX, 0.6, self._secondary_color, 2, cv2.LINE_AA
         )
 
         # Location and condition
         cv2.putText(
             frame, weather.location,
             (x + 20, y + 75),
-            cv2.FONT_HERSHEY_SIMPLEX, 0.5, self._secondary_color, 1, cv2.LINE_AA
+            cv2.FONT_HERSHEY_DUPLEX, 0.5, self._secondary_color, 2, cv2.LINE_AA
         )
 
         # Large weather icon
@@ -314,7 +315,7 @@ class WeatherWidget(BaseWidget):
                 cv2.putText(
                     frame, day.date,
                     (day_cx - 12, forecast_y_start),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.35, self._secondary_color, 1, cv2.LINE_AA
+                    cv2.FONT_HERSHEY_DUPLEX, 0.35, self._secondary_color, 1, cv2.LINE_AA
                 )
 
                 # Weather icon (small)
@@ -328,14 +329,14 @@ class WeatherWidget(BaseWidget):
                 cv2.putText(
                     frame, f"{day.temp_high}",
                     (day_cx - 10, forecast_y_start + 70),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.4, self._text_color, 1, cv2.LINE_AA
+                    cv2.FONT_HERSHEY_DUPLEX, 0.4, self._text_color, 2, cv2.LINE_AA
                 )
 
                 # Low temp
                 cv2.putText(
                     frame, f"{day.temp_low}",
                     (day_cx - 10, forecast_y_start + 90),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.35, self._secondary_color, 1, cv2.LINE_AA
+                    cv2.FONT_HERSHEY_DUPLEX, 0.35, self._secondary_color, 1, cv2.LINE_AA
                 )
 
     def draw(self, frame: np.ndarray) -> np.ndarray:
